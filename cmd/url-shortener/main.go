@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-
 	"github.com/Tbits007/url-shortener/internal/config"
 	"github.com/Tbits007/url-shortener/internal/lib/logger/sl"
 	"github.com/Tbits007/url-shortener/internal/storage/postgres"
+	"github.com/Tbits007/url-shortener/internal/http-server/middleware/logger"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+
 )
 
 const (
@@ -36,12 +39,17 @@ func main() {
         cfg.Postgres.Port,
         cfg.Postgres.DBName,
 	)
-	storage, err := postgres.New(connStr)
+	_, err := postgres.New(connStr)
 	if err != nil {
 		log.Error("failed to init storage", sl.Err(err))
 		os.Exit(1)
 	}
-	_ = storage
+
+	router := chi.NewRouter()
+	router.Use(middleware.RequestID) // Добавляет request_id в каждый запрос, для трейсинга
+	router.Use(logger.New(log)) // Логирование всех запросов
+	router.Use(middleware.Recoverer)  // Если где-то внутри сервера (обработчика запроса) произойдет паника, приложение не должно упасть
+	router.Use(middleware.URLFormat) // Парсер URLов поступающих запросов
 }
 
 func setupLogger(env string) *slog.Logger {
