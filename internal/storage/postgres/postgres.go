@@ -2,8 +2,11 @@ package postgres
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
-	_ "github.com/lib/pq"
+
+	"github.com/Tbits007/url-shortener/internal/storage"
+	"github.com/lib/pq"
 )
 	
 
@@ -33,4 +36,62 @@ func New(connStr string) (*Storage, error) {
     }
 
     return &Storage{db: db}, nil
+}
+
+func (s *Storage) SaveURL(urlToSave string, alias string) error {
+    const op = "storage.postgres.SaveURL"
+
+    query := `INSERT INTO url(url,alias) values($1,$2)`
+    
+    _, err := s.db.Exec(query, urlToSave, alias)
+    if err != nil {
+        if pgErr, ok := err.(*pq.Error); ok {
+            if pgErr.Code == "23505" { // 23505 - это код ошибки unique_violation в PostgreSQL
+                return fmt.Errorf("%s: %w", op, storage.ErrURLExists)
+            }
+        }
+        return fmt.Errorf("%s: execute query: %w", op, err)
+    }
+
+    return nil
+}
+
+func (s *Storage) GetURL(alias string) (string, error) {
+    const op = "storage.postgres.GetURL"
+
+    query := `SELECT url FROM url WHERE alias = $1`
+
+    row := s.db.QueryRow(query, alias)
+
+    var res string 
+    err := row.Scan(&res)
+    if err != nil {
+        if errors.Is(err, sql.ErrNoRows) {
+            return "", fmt.Errorf("%s: url not found: %w", op, storage.ErrURLNotFound)
+        }
+        return "", fmt.Errorf("%s: execute query:%w", op, err)
+    } 
+
+    return res, nil 
+}
+
+func (s *Storage) DeleteURL(alias string) error {
+    const op = "storage.postgres.DeleteURL"
+    
+    query := `DELETE FROM url WHERE alias = $1`
+
+    res, err := s.db.Exec(query)
+    if err != nil {
+        return fmt.Errorf("%s: execute query: %w", op, storage.ErrURLNotFound) 
+    }
+
+    count, err := res.RowsAffected()
+    if err != nil {
+        return fmt.Errorf("%s: failed to get rows affected: %w", op, err)
+    }
+    if count == 0 {
+        return fmt.Errorf("%s: url not found:%w", op, storage.ErrURLNotFound)
+    }   
+
+    return nil 
 }
