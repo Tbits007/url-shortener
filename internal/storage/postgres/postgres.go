@@ -23,10 +23,14 @@ func New(connStr string) (*Storage, error) {
     }
 
     query := `
+    DROP TABLE IF EXISTS url;
+
     CREATE TABLE IF NOT EXISTS url(
-        id INTEGER PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         alias TEXT NOT NULL UNIQUE,
-        url TEXT NOT NULL);
+        url TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_alias ON url(alias);
     `
 
@@ -38,7 +42,7 @@ func New(connStr string) (*Storage, error) {
     return &Storage{db: db}, nil
 }
 
-func (s *Storage) SaveURL(urlToSave string, alias string) error {
+func (s *Storage) SaveURL(urlToSave, alias string) error {
     const op = "storage.postgres.SaveURL"
 
     query := `INSERT INTO url(url,alias) values($1,$2)`

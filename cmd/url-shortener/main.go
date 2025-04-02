@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"net/http"
 	"github.com/Tbits007/url-shortener/internal/config"
+	"github.com/Tbits007/url-shortener/internal/http-server/handlers/url/save"
+	"github.com/Tbits007/url-shortener/internal/http-server/middleware/logger"
 	"github.com/Tbits007/url-shortener/internal/lib/logger/sl"
 	"github.com/Tbits007/url-shortener/internal/storage/postgres"
-	"github.com/Tbits007/url-shortener/internal/http-server/middleware/logger"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-
 )
 
 const (
@@ -18,6 +19,7 @@ const (
     envDev   = "dev"
     envProd  = "prod"
 )
+
 
 func main() {
 	// Config
@@ -39,17 +41,34 @@ func main() {
         cfg.Postgres.Port,
         cfg.Postgres.DBName,
 	)
-	_, err := postgres.New(connStr)
+	storage, err := postgres.New(connStr)
 	if err != nil {
 		log.Error("failed to init storage", sl.Err(err))
 		os.Exit(1)
 	}
 
 	router := chi.NewRouter()
+
 	router.Use(middleware.RequestID) // Добавляет request_id в каждый запрос, для трейсинга
 	router.Use(logger.New(log)) // Логирование всех запросов
 	router.Use(middleware.Recoverer)  // Если где-то внутри сервера (обработчика запроса) произойдет паника, приложение не должно упасть
 	router.Use(middleware.URLFormat) // Парсер URLов поступающих запросов
+
+	router.Post("/saveURL", save.New(log, storage))
+
+	srv := &http.Server{
+		Addr: cfg.HTTPServer.Address,
+		Handler: router,
+		ReadTimeout: cfg.HTTPServer.Timeout,
+		WriteTimeout: cfg.HTTPServer.Timeout,
+		IdleTimeout: cfg.HTTPServer.IdleTimeout,
+	}
+
+	if err = srv.ListenAndServe(); err != nil {
+		log.Error("failed to start server")
+	}
+	log.Error("server stopped")
+
 }
 
 func setupLogger(env string) *slog.Logger {
