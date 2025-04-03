@@ -56,7 +56,14 @@ func main() {
 	router.Use(middleware.Recoverer)  // Если где-то внутри сервера (обработчика запроса) произойдет паника, приложение не должно упасть
 	router.Use(middleware.URLFormat) // Парсер URLов поступающих запросов
 
-	router.Post("/saveURL", save.New(log, storage))
+	router.Group(func(r chi.Router) {
+		r.Use(middleware.BasicAuth("url-shortener", map[string]string{
+			cfg.HTTPServer.User: cfg.HTTPServer.Password,
+		}))		
+
+		router.Post("/saveURL", save.New(log, storage))
+	})
+
 	router.Get("/{alias}", redirect.New(log, storage))
 	
 	srv := &http.Server{

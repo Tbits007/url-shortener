@@ -78,24 +78,3 @@ func (s *Storage) GetURL(alias string) (string, error) {
 
     return res, nil 
 }
-
-func (s *Storage) DeleteURL(alias string) error {
-    const op = "storage.postgres.DeleteURL"
-    
-    query := `DELETE FROM url WHERE alias = $1`
-
-    res, err := s.db.Exec(query)
-    if err != nil {
-        return fmt.Errorf("%s: execute query: %w", op, storage.ErrURLNotFound) 
-    }
-
-    count, err := res.RowsAffected()
-    if err != nil {
-        return fmt.Errorf("%s: failed to get rows affected: %w", op, err)
-    }
-    if count == 0 {
-        return fmt.Errorf("%s: url not found:%w", op, storage.ErrURLNotFound)
-    }   
-
-    return nil 
-}
