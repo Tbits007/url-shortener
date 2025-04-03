@@ -3,9 +3,11 @@ package main
 import (
 	"fmt"
 	"log/slog"
-	"os"
 	"net/http"
+	"os"
+
 	"github.com/Tbits007/url-shortener/internal/config"
+	"github.com/Tbits007/url-shortener/internal/http-server/handlers/url/redirect"
 	"github.com/Tbits007/url-shortener/internal/http-server/handlers/url/save"
 	"github.com/Tbits007/url-shortener/internal/http-server/middleware/logger"
 	"github.com/Tbits007/url-shortener/internal/lib/logger/sl"
@@ -55,7 +57,8 @@ func main() {
 	router.Use(middleware.URLFormat) // Парсер URLов поступающих запросов
 
 	router.Post("/saveURL", save.New(log, storage))
-
+	router.Get("/{alias}", redirect.New(log, storage))
+	
 	srv := &http.Server{
 		Addr: cfg.HTTPServer.Address,
 		Handler: router,

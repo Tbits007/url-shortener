@@ -14,3 +14,6 @@ packages:
     github.com/Tbits007/url-shortener/internal/http-server/handlers/url/save:
         interfaces:
             URLSaver:
+    github.com/Tbits007/url-shortener/internal/http-server/handlers/url/redirect:
+        interfaces:
+            URLGetter:
